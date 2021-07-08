@@ -1,0 +1,215 @@
+---
+title: "An Introduction to gradethis"
+output: rmarkdown::html_vignette
+vignette: |-
+  >
+  %\VignetteIndexEntry{An Introduction to gradethis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+**gradethis** is a package to to grade code and provide meaningful feedback in
+[learnr][learnr] interactive tutorials or
+as a standalone code grader.
+It gives instructors the ability to capture code submitted by a student and
+check it in one of 3 ways:
+
+1. `grade_code`:
+    **Compares the code** to see if the student code exactly matches the solution code provided
+    by the instructor.
+2.  `grade_result`:
+    **Checks the result** to see if the student returns a  matching result,
+    regardless the code.
+3. `grade_conditions`:
+    **Compares all result conditions** to see if a student's function passes all test cases,
+    analogous to running unittests.
+
+You can see the slides for
+[satRday 2020](http://dc2020.netlify.com/)
+on `gradethis`
+[here](https://speakerdeck.com/chendaniely/satrday-grading-code-with-gradethis).
+
+# Using `gradethis` in `learnr` documents
+
+`gradethis` can be used to grade exercises within `learnr` documents.
+This gives the student meaningful feedback as they work through the interactive `learnr` document.
+`learnr` and `gradethis` interact with one another with a series of named chunks.
+Depending on the suffix used in the chunk name, e.g., `-solution`, `-check`,
+`gradethis` will use one of the grading methods mentioned above.
+
+## A convenient addin
+
+Since a (unique) chunk name is tied together with each `learnr` example,
+`gradethis` comes with an [RStudio addin][addin]
+that easily adds the chunks needed for each type of check.
+This will conviently generate a random chunk label with the corresponding chunk suffixes
+depending on which grading method the instructor plans to use.
+
+You can even bind these functions to a [keyboard shortcut][addin-keyboard_shortcut]!
+
+## Grade code
+
+In order to grade and compare the student's code to the solution,
+there needs the base chunk, a `-solution` chunk, and a `-check` chunk.
+`-hint` chunks are optional.
+For example,
+
+````markdown
+`r ''````{r grade_code, exercise = TRUE}
+# student code
+____
+```
+
+`r ''````{r grade_code-hint-1}
+# hint text
+""
+```
+
+`r ''````{r grade_code-hint-2}
+# hint text
+""
+```
+
+`r ''````{r grade_code-solution}
+# solution code
+
+```
+
+`r ''````{r grade_code-check}
+# check code
+gradethis::grade_code()
+```
+````
+
+The `-solution` chunk is where the instructor's solution code to be compared will be placed.
+The call to `grade_code` within the  `-check` chunk is where the instructor can modify the default
+success or failure message.
+
+
+## Grade result
+
+Instead of just comparing the code expressions to one another,
+another way to check the student's code is comparing at the student's final solution.
+In this case, we do not need a `-solution` chunk.
+For example,
+
+
+````markdown
+`r ''````{r grade_result, exercise = TRUE}
+# student code
+____
+```
+
+`r ''````{r grade_result-hint-1}
+# hint text
+""
+```
+
+`r ''````{r grade_result-hint-2}
+# hint text
+""
+```
+
+`r ''````{r grade_result-check}
+gradethis::grade_result(
+  gradethis::pass_if(~ identical(.result, 1), \"YAY!\"),
+  gradethis::fail_if(~ identical(.result, 2), \"Try Again.\")
+)
+```
+````
+
+In this case, in the `-check` chunk we call `check_result`,
+and pass in various `pass_if` and `fail_if` conditions.
+The **first** condition that matches will return the corresponding feedback, i.e.,
+if a `pass_if` case matches then the student's solution passed,
+if a `fail_if` case matches then the student's solution failed.
+
+The `pass_if`, `fail_if`, and `check_result` functions all have parameters to customize the
+message to the student.
+
+## Test result
+
+The last way to grade a student's solution is by matching against all instructor procided conditions.
+The chunk setup is similar to the `grade_result` case, for example:
+
+````markdown
+`r ''````{r grade_conditions, exercise = TRUE}
+# student code
+____
+```
+
+`r ''````{r grade_conditions-hint-1}
+# hint text
+""
+```
+
+`r ''````{r grade_conditions-hint-2}
+# hint text
+""
+```
+
+`r ''````{r grade_conditions-check}
+gradethis::grade_conditions(
+  gradethis::pass_if(~ identical(.result, 1)),
+  gradethis::fail_if(~ identical(.result, 2))
+)
+```
+````
+
+The difference here is that `grade_conditions` is called in the `-check` chunk.
+All `pass_if` and `fail_if` conditions must match in this case.
+This is similar to providing a set of unit tests for a student provided function.
+
+# Using `gradethis` as a standlone grader
+
+```{r}
+library(gradethis)
+```
+
+The grading functions, `grade_code`, `grade_result`, and `grade_conditions` can also be used
+outside the `learnr` context.
+The instructor will have to manually provide the
+result (in the case of `grade_result`, and `grade_conditions`) or
+a `quote`d expression (in the case of `grade_code`) manually.
+
+All of the grading function will return a `gradethis::graded` object
+with a `message`, `correct` status.
+
+## Grade code
+
+When grading code, `quote`d expressions must be passed.
+
+```{r}
+student_code  <- quote(sqrt(exp(3)))
+solution_code <- quote(sqrt(log(2)))
+```
+
+```{r}
+gradethis::grade_code(grader_args = list(
+  user_quo = student_code,
+  solution_quo = solution_code
+  )
+)
+```
+
+## Grade result
+
+To manually grade a result, the student result needs to be passed as a
+`last_value` in the `learnr_args` parameter.
+
+```{r}
+student_solution <- 5
+```
+
+```{r}
+gradethis::grade_result(
+  pass_if(5, "You also got a value of 5!"),
+  learnr_args = list(last_value = student_solution)
+)
+```
+
+
+
+[learnr]: https://rstudio.github.io/learnr
+[addin]: https://rstudio.github.io/rstudioaddins/
+[addin-keyboard_shortcut]: https://rstudio.github.io/rstudioaddins/#keyboard-shorcuts

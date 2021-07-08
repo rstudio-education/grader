@@ -1,0 +1,74 @@
+---
+title: "Do not use == to compare .result"
+output: rmarkdown::html_vignette
+vignette: |-
+  >
+  %\VignetteIndexEntry{Do not use  == to compare .result}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+It is highly encouraged to make comparisons within `gradethis` to **not** use `==`,
+and insead make comparisons using the `identical()` or `all.equal() `functions.
+
+There are 2 main reasons for this.
+
+1. Most (if not all) instructor comparisons are expected to return a single boolean value,
+  using `==` returns a vector of boolean values, which can have a `length()` greater than 1.
+  This is probably unexpected,
+  so it is better to use `identical` or `all.equal` which will return a boolean of length 1.
+2. There is a bug when comparing expressions greater than 60 characters long (see bottom for links)
+
+# Be explicit
+
+In the first case, if the solution is a vector of values, the "truthfulness" of the comparison is ambiguous,
+
+```{r}
+student <- c(1, 2, 3)
+solution <- c(1, 2, 4)
+
+student == solution
+```
+
+`gradethis` will return a warning, and implicitely wrap the vector around `all`,
+but it is better for the instructor to write the boolean condition correctly.
+
+```{r}
+all(student == solution)
+```
+
+```{r}
+identical(student, solution)
+```
+
+# Bug in `==`
+
+When comparing longer than `60L` characters,
+only the first `60` characters are actually compared.
+
+```{r}
+# 63 characters
+u <- quote(f(x1234567890123456789012345678901234567890123456789012345, 1))
+s <- quote(f(x1234567890123456789012345678901234567890123456789012345, 2))
+u == s
+```
+
+
+```{r}
+# 64 characters
+u <- quote(f(x12345678901234567890123456789012345678901234567890123456, 1))
+s <- quote(f(x12345678901234567890123456789012345678901234567890123456, 2))
+u == s
+```
+
+In this case, expressions should always be compared with `identical`:
+
+```{r}
+identical(u, s)
+```
+
+
+You can read more about it here: https://daniel.rbind.io/2019/08/06/inconsistencies-with-in-r/
+
+More details are found in this issue: https://github.com/rstudio-education/gradethis/issues/28
+
